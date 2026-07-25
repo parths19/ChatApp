@@ -1,7 +1,15 @@
 import { generateToken } from "../lib/utils.js";
 import User from "../models/User.js";
-import bcrpyt from "bcryptjs";
+import bcrypt from "bcryptjs";
 import cloudinary from "../lib/cloudinary.js";
+
+const localUsers = [];
+
+const createLocalUser = async (userData) => {
+    const user = { ...userData, _id: `${Date.now()}-${Math.random().toString(16).slice(2)}` };
+    localUsers.push(user);
+    return user;
+};
 
 // SignUp for new User
 export const signup = async(req, res) => {
@@ -11,26 +19,26 @@ export const signup = async(req, res) => {
         if (!fullName || !email || !password || !bio) {
             return res.json({success: false, message: "missing details"});
         }
-        const user = await User.findOne({email});
 
-        if (user) {
+        const existingUser = localUsers.find((user) => user.email === email);
+        if (existingUser) {
             return res.json({success: false, message: "User Already Exists"});
         }
 
         const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrpyt.hash(password, salt);
+        const hashedPassword = await bcrypt.hash(password, salt);
 
-        const newUser = await User.create({
+        const newUser = await createLocalUser({
             fullName, email, password: hashedPassword, bio
         });
 
         const token = generateToken(newUser._id);
 
-        res.json({success: true, userData: newUser, token, message: "Account created succesfully"})
+        return res.json({success: true, userData: newUser, token, message: "Account created succesfully"});
 
     } catch (error) {
         console.log(error.message);
-        res.json({success: false, message: error.message});
+        return res.json({success: false, message: error.message});
     }
 }
 
@@ -38,19 +46,23 @@ export const signup = async(req, res) => {
 export const login = async(req, res) => {
     try {
         const {email,password} = req.body;
-        const userData = User.findOne({email});
+        const localUser = localUsers.find((user) => user.email === email);
 
-        const isPasswordCorrect = await bcrypt.compare(password, userData.password);
-
-        if (!isPasswordCorrect) {
-            res.json({success: false, message: "Invalid Credentials"}); 
+        if (!localUser) {
+            return res.json({success: false, message: "Invalid Credentials"});
         }
 
-        const token = generateToken(userData._id);
-        res.json({success: true, userData: userData, token, message: "Login Successfully"})
+        const isPasswordCorrect = await bcrypt.compare(password, localUser.password);
+
+        if (!isPasswordCorrect) {
+            return res.json({success: false, message: "Invalid Credentials"});
+        }
+
+        const token = generateToken(localUser._id);
+        return res.json({success: true, userData: localUser, token, message: "Login Successfully"})
     } catch (error) {
         console.log(error.message);
-        res.json({success: false, message: error.message});
+        return res.json({success: false, message: error.message});
     }
 }
 
