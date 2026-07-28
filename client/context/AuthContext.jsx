@@ -80,7 +80,7 @@ export const AuthProvider = ({ children }) => {
         if (!userData || socket?.connected) return;
         const newSocket = io(backendUrl, {
             query: {
-                userid: userData._id,
+                userId: userData._id,
             }
         });
 

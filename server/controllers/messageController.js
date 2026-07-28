@@ -3,30 +3,31 @@ import User from "../models/User.js";
 import cloudinary from "../lib/cloudinary.js";
 import { io, userSocketMap } from "../server.js";
 
-//Get all users expect the logged in user 
+//Get all users except the logged in user
 export const getUsersForSidebar = async (req, res) => {
     try {
         const userId = req.user._id;
-        const filteredUsers = await User.find({ _id: { $ne: userId } }).select
-            ("-password");
-        // Count number of messages not seen
-        const unseenMessages = {}
-        const promises = filteredUsers.map(async (user) => {
-            const messages = await Message.find({
-                senderId: user._id, receiverId:
-                    userId, seen: false
-            })
-            if (messages.length > 0) {
-                unseenMessages[user_id] = messages.length;
-            }
+        const filteredUsers = await User.find({ _id: { $ne: userId } }).select("-password");
 
-            await Promise.all(promises);
-            res.json({ success: true, users: filteredUsers, unseenMessages })
-        })
-    }
-    catch (error) {
+        const unseenMessages = {};
+        await Promise.all(
+            filteredUsers.map(async (user) => {
+                const messages = await Message.find({
+                    senderId: user._id,
+                    receiverId: userId,
+                    seen: false,
+                });
+
+                if (messages.length > 0) {
+                    unseenMessages[user._id] = messages.length;
+                }
+            })
+        );
+
+        res.json({ success: true, users: filteredUsers, unseenMessages });
+    } catch (error) {
         console.log(error.message);
-        res.json({ success: false, message: error.message })
+        res.json({ success: false, message: error.message });
     }
 }
 
